@@ -18,7 +18,9 @@ specificOption =
        Option ['p'] ["eps"] (ReqArg (\arg opt -> return opt {epsilon = read arg :: Double}) "DOUBLE") "EPS",
        Option ['h'] ["help"] (NoArg (\opt -> return opt {help = True})) "Help",
        Option ['i'] ["input"] (ReqArg (\arg opt -> return opt {input = arg}) "STRING") "Input file",
-       Option ['d'] ["delimeter"] (ReqArg (\arg opt -> return opt {splitterColumn = arg !! 0})"Char") "Splitter Column"
+       Option ['d'] ["delimeter"] (ReqArg (\arg opt -> return opt {splitterColumn = arg !! 0})"Char") "Splitter Column",
+       Option ['c'] ["countClusters"] (ReqArg (\arg opt -> return opt {countCluster = read arg :: Integer}) "Integer") "Count Cluster",
+       Option ['r'] ["random"] (NoArg (\opt -> return opt {randomize = False})) "Random center or random matrix"
    ]
 
 parseInputArguments :: [String] -> IO ParserCSVOption
