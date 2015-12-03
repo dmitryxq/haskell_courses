@@ -5,7 +5,7 @@ module Types
 
 data ParserCSVOption = ParserCSVOption
     {
-        splitterColumn :: String
+        splitterColumn :: Char
       , ignoreHeader :: Bool
       , ignoreFirstColumn :: Bool
       , ignoreLastColumn :: Bool
@@ -18,7 +18,7 @@ data ParserCSVOption = ParserCSVOption
 
 defaultCSVOption :: ParserCSVOption
 defaultCSVOption = ParserCSVOption
-  { splitterColumn = ","
+  { splitterColumn = ','
   , ignoreHeader = False
   , ignoreFirstColumn = False
   , ignoreLastColumn = False

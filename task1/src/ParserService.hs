@@ -1,5 +1,6 @@
 module ParserService
     ( 
+        parserCSVFile
     ) where
 
 import Types
@@ -8,39 +9,30 @@ import Data.Csv
 import Data.Char
 import Data.ByteString.Lazy
 import Data.Vector as V
--- import Data.Text (Text)
 
 import qualified Data.ByteString.Lazy as BL
 
--- parserCSVFile :: FilePath -> ParserCSVOption -> IO CSV
--- parserCSVFile filePath options = do
---     fileData <- BL.readFile filePath
---     let ParserCSVOption {splitterColumn = delimetr} = options
---         resultData 
---     in case result of
---                         Left err -> Left err
---                         Right parsedData -> Right    
-
-
 parserCSVFile :: ByteString -> ParserCSVOption -> Either String (Vector (Vector Double))
 parserCSVFile contents options = 
-    let ParserCSVOption {input = file} = options
-        ParserCSVOption {splitterColumn = splitter} = options
-        decodeOptions = DecodeOptions { decDelimiter = fromIntegral (ord ',')}
-        
-        resultData = if ignoreHeader options
-                        then decodeWith decodeOptions HasHeader contents
-                     else decodeWith decodeOptions NoHeader contents
-        in case resultData of Left errorMessage -> Left errorMessage
-                              Right parsedData -> Right (V.map (V.map read) parsedData)
+    let ParserCSVOption {splitterColumn = splitter} = options
+        ParserCSVOption {ignoreHeader = ignoreHeader} = options
+        decodeOptions = DecodeOptions { decDelimiter = fromIntegral (ord splitter) }
+
+        resultData = deleteHeader contents decodeOptions ignoreHeader
+
+    in decodingData resultData
 
 
+deleteHeader :: ByteString -> DecodeOptions -> Bool -> Either String (Vector (Vector String))
+deleteHeader contents decodeOptions ignoreHeader = 
+    if ignoreHeader
+        then decodeWith decodeOptions HasHeader contents
+    else decodeWith decodeOptions NoHeader contents
 
 
-
-
-
-
+decodingData :: Either String (Vector (Vector String)) -> Either String (Vector (Vector Double))  
+decodingData infoData = case infoData of Left errorMessage -> Left errorMessage
+                                         Right parsedData -> Right (V.map (V.map read) parsedData)
 
 -- parser :: ParserCSVOption -> String -> [[String]]
 -- parser opts s = 

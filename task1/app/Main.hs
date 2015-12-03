@@ -11,8 +11,9 @@ import Pipes
 import Data.Csv
 import Data.Char
 import Data.Vector as V
+import Control.Exception
 -- import Data.Text (Text)
-
+import Data.ByteString.Lazy
 import qualified Data.ByteString.Lazy as BL
 
 import Data.List.Split
@@ -24,9 +25,15 @@ csvFile = "resources/glass.txt"
 main :: IO ()
 main = do
     options <- getArgs >>= parseInputArguments
-    contents <- BL.readFile csvFile
-    
-    putStrLn "fine"
+    -- contents <- BL.readFile csvFile
+    readResult <- try (BL.readFile csvFile):: IO(Either SomeException ByteString)
+    case readResult of
+         Left someException -> print someException
+         Right contents -> do
+         	let result = parserCSVFile contents options
+         	print result
+         	-- putStrLn result
+    System.IO.putStrLn "fine"
     -- putStrLn "Please input parameters: "
     -- putStrLn $ show $ splitOn "," "1,2,3,4"
  --    arguments <- getLine

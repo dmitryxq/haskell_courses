@@ -18,7 +18,7 @@ specificOption =
        Option ['p'] ["eps"] (ReqArg (\arg opt -> return opt {epsilon = read arg :: Double}) "DOUBLE") "EPS",
        Option ['h'] ["help"] (NoArg (\opt -> return opt {help = True})) "Help",
        Option ['i'] ["input"] (ReqArg (\arg opt -> return opt {input = arg}) "STRING") "Input file",
-       Option ['d'] ["delimeter"] (ReqArg (\arg opt -> return opt {splitterColumn = arg}) "STRING") "Splitter Column"
+       Option ['d'] ["delimeter"] (ReqArg (\arg opt -> return opt {splitterColumn = arg !! 0})"Char") "Splitter Column"
    ]
 
 parseInputArguments :: [String] -> IO ParserCSVOption
