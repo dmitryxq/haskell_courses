@@ -9,11 +9,13 @@ import Data.Csv
 import Data.Char
 import Data.ByteString.Lazy
 import Data.Vector as V
-
 import qualified Data.ByteString.Lazy as BL
 
+type VectorMatrix a = V.Vector a
+type Matrix a = V.Vector (VectorMatrix a)
+
 -- public
-parserCSVFile :: ByteString -> ParserCSVOption -> Either String (Vector (Vector Double))
+parserCSVFile :: ByteString -> ParserCSVOption -> IO(Either String (Matrix String))
 parserCSVFile contents options = 
     let ParserCSVOption {splitterColumn = splitter} = options
         ParserCSVOption {ignoreHeader = ignoreHeader} = options
@@ -25,21 +27,21 @@ parserCSVFile contents options =
     in decodingData resultData options
 
 -- private
-decodingData :: Either String (Vector (Vector String)) -> ParserCSVOption -> Either String (Vector (Vector Double))  
+decodingData :: Either String (Matrix String) -> ParserCSVOption -> IO(Either String (Matrix String)) 
 decodingData infoData options = case infoData of 
-    Left errorMessage -> Left errorMessage
-    Right parsedData -> Right (V.map (V.map read) (deleteLastColumn options (deleteFirstColumn options parsedData)))
+    Left errorMessage -> return (Left errorMessage)
+    Right parsedData -> return (Right (V.map (V.map read) (deleteLastColumn options (deleteFirstColumn options parsedData))))
 
 
 -- private
-deleteHeader :: ByteString -> DecodeOptions -> Bool -> Either String (Vector (Vector String))
+deleteHeader :: ByteString -> DecodeOptions -> Bool -> Either String (Matrix String)
 deleteHeader contents decodeOptions ignoreHeader = 
     if ignoreHeader
         then decodeWith decodeOptions HasHeader contents
     else decodeWith decodeOptions NoHeader contents
 
 -- private
-deleteFirstColumn :: ParserCSVOption -> Vector(Vector String) -> Vector(Vector String)
+deleteFirstColumn :: ParserCSVOption -> (Matrix String) -> (Matrix String)
 deleteFirstColumn options contents = 
     let ParserCSVOption {ignoreFirstColumn = ignoreColumn} = options
     in    
@@ -48,7 +50,7 @@ deleteFirstColumn options contents =
     else contents 
 
 -- private
-deleteLastColumn :: ParserCSVOption -> Vector(Vector String) -> Vector(Vector String)
+deleteLastColumn :: ParserCSVOption -> (Matrix String) -> (Matrix String)
 deleteLastColumn options contents = 
     let ParserCSVOption {ignoreLastColumn = ignoreColumn} = options
     in    

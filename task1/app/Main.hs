@@ -24,16 +24,25 @@ csvFile = "resources/glass.txt"
 
 main :: IO ()
 main = do
-    options <- getArgs >>= parseInputArguments
-    -- contents <- BL.readFile csvFile
-    readResult <- try (BL.readFile csvFile):: IO(Either SomeException ByteString)
-    case readResult of
-         Left someException -> print someException
-         Right contents -> do
-         	let result = parserCSVFile contents options
-         	print result
-         	-- putStrLn result
-    System.IO.putStrLn "fine"
+	-- MAIN function main
+
+    -- options <- getArgs >>= parseInputArguments
+    -- -- contents <- BL.readFile csvFile
+    -- readResult <- try (BL.readFile csvFile):: IO(Either SomeException ByteString)
+    -- case readResult of
+    --      Left someException -> print someException
+    --      Right contents -> do
+    --      	let result = parserCSVFile contents options
+    --      	print result
+    --      	-- putStrLn result
+    -- System.IO.putStrLn "fine"
+
+    System.IO.putStrLn $ show $ normalize_matrix [[3,4],[5,3]]
+
+
+
+
+
     -- putStrLn "Please input parameters: "
     -- putStrLn $ show $ splitOn "," "1,2,3,4"
  --    arguments <- getLine
