@@ -25,6 +25,7 @@ library
                      , csv
                      , bytestring
                      , vector
+                     , conduit
   default-language:    Haskell2010
 
 executable task1-exe
@@ -40,6 +41,10 @@ executable task1-exe
                      , pipes-csv
                      , bytestring
                      , vector
+                     , conduit
+                     , conduit-extra
+                     , mtl
+                     , resourcet
   default-language:    Haskell2010
 
 test-suite task1-test
