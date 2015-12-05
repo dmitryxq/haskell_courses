@@ -37,7 +37,7 @@ main = do
     --      	-- putStrLn result
     -- System.IO.putStrLn "fine"
 
-    System.IO.putStrLn $ show $ normalize_matrix [[3,4],[5,3]]
+    System.IO.putStrLn "Thanks"
 
 
 
