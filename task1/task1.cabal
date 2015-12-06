@@ -19,6 +19,8 @@ library
                      , ParserService
                      , Types
                      , ParserArgumentParams
+                     , BayesClassifier
+                     , ReadFileConduit
   build-depends:       base >= 4.7 && < 5
                      , split
                      , cassava
@@ -26,6 +28,11 @@ library
                      , bytestring
                      , vector
                      , conduit
+                     , conduit-extra
+                     , transformers
+                     , text
+                     , random
+                     , statistics
   default-language:    Haskell2010
 
 executable task1-exe
@@ -45,6 +52,7 @@ executable task1-exe
                      , conduit-extra
                      , mtl
                      , resourcet
+                     , statistics
   default-language:    Haskell2010
 
 test-suite task1-test
