@@ -16,11 +16,11 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     MathService
+                     , ParserServiceOldSchool
                      , ParserService
                      , Types
                      , ParserArgumentParams
                      , BayesClassifier
-                     , ReadFileConduit
   build-depends:       base >= 4.7 && < 5
                      , split
                      , cassava
@@ -33,6 +33,10 @@ library
                      , text
                      , random
                      , statistics
+                     , mtl
+                     , parallel
+                     , monad-par
+                     , containers
   default-language:    Haskell2010
 
 executable task1-exe
@@ -50,9 +54,14 @@ executable task1-exe
                      , vector
                      , conduit
                      , conduit-extra
-                     , mtl
                      , resourcet
                      , statistics
+                     , mtl
+                     , parallel
+                     , monad-par
+                     , containers
+                     , random
+                     , optparse-applicative
   default-language:    Haskell2010
 
 test-suite task1-test

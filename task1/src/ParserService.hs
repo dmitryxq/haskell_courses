@@ -1,59 +1,80 @@
-module ParserService
-    ( 
-        parserCSVFile
-    ) where
-
+module ParserService where 
 import Types
+import System.IO
+import Data.Conduit
+import Control.Monad.IO.Class
 import Data.List.Split
-import Data.Csv
-import Data.Char
-import Data.ByteString.Lazy
-import Data.Vector as V
+import qualified Data.Conduit.List as CL
 
-import qualified Data.ByteString.Lazy as BL
+source :: String -> Source IO String
+source filepath = do
+    handle <- liftIO $ openFile filepath ReadMode
+    loop handle
+  where
+    loop handle = do
+        eof <- liftIO $ hIsEOF handle
+        if eof
+            then return ()
+            else do
+                c <- liftIO $ hGetLine handle
+                yield c
+                loop handle
+
+fileSink :: Handle -> Sink String IO ()
+fileSink handle = CL.mapM_ (hPutStrLn handle)
+
+conduit :: (String -> [String]) -> ([Double] -> [Double]) -> Conduit String IO DataVector
+conduit elementSplit lTransform = do
+    str <- await
+
+    case str of 
+            Just s -> do
+                let (res, className) = splitInClassNameAndVector . emptyFilter . elementSplit $ s
+                if className /= "" then yield (lTransform res, className) else return ()
+                conduit elementSplit lTransform
+            _ -> return ()  
+
+
+splitInClassNameAndVector :: [String] -> DataVector
+splitInClassNameAndVector [] = ([], "")
+splitInClassNameAndVector v = (vToDouble $ init v, last v)
+
+vToDouble = map toDouble
+    where toDouble = \x -> read x :: Double
+emptyFilter = filter (/= "")
 
 
 
--- public
-parserCSVFile :: ByteString -> ParserCSVOption -> Either String (Vector (Vector Double))
-parserCSVFile contents options = 
-    let ParserCSVOption {splitterColumn = splitter} = options
-        ParserCSVOption {ignoreHeader = ignoreHeader} = options
-        decodeOptions = DecodeOptions { decDelimiter = fromIntegral (ord splitter) }
-
-        -- delete header if needed
-        resultData = deleteHeader contents decodeOptions ignoreHeader 
-
-    in decodingData resultData options
-
--- private
-decodingData :: Either String (Vector (Vector String)) -> ParserCSVOption -> Either String (Vector (Vector Double))  
-decodingData infoData options = case infoData of 
-    Left errorMessage -> Left errorMessage
-    Right parsedData -> Right (V.map (V.map read) (deleteLastColumn options (deleteFirstColumn options parsedData)))
+mapWithIndex :: ((Int , a) -> b) -> [a] -> [b]
+mapWithIndex f xs = map f (zip [0..] xs)
 
 
--- private
-deleteHeader :: ByteString -> DecodeOptions -> Bool -> Either String (Vector (Vector String))
-deleteHeader contents decodeOptions ignoreHeader = 
-    if ignoreHeader
-        then decodeWith decodeOptions HasHeader contents
-    else decodeWith decodeOptions NoHeader contents
 
--- private
-deleteFirstColumn :: ParserCSVOption -> Vector(Vector String) -> Vector(Vector String)
-deleteFirstColumn options contents = 
-    let ParserCSVOption {ignoreFirstColumn = ignoreColumn} = options
-    in    
-    if ignoreColumn
-        then V.map V.init contents
+
+
+elementSplitter :: String -> String -> [String]
+elementSplitter devider = splitOneOf devider
+
+deleteFirstColumn :: Bool -> [a] -> [a]
+deleteFirstColumn option contents =   
+    if option
+        then tail contents
+    else contents
+
+deleteLastColumn :: Bool -> [a] -> [a]
+deleteLastColumn option contents = 
+    if option
+        then init contents
     else contents 
 
--- private
-deleteLastColumn :: ParserCSVOption -> Vector(Vector String) -> Vector(Vector String)
-deleteLastColumn options contents = 
-    let ParserCSVOption {ignoreLastColumn = ignoreColumn} = options
-    in    
-    if ignoreColumn
-        then V.map V.init contents
-    else contents 
+deleteColumns :: [a] -> Bool -> Bool -> [a]
+deleteColumns list fColumn lColumn = deleteLastColumn lColumn (deleteFirstColumn fColumn list) 
+
+deleteHeader :: [a] -> Bool -> [a]
+deleteHeader list option = 
+    if option
+        then tail list
+    else list
+
+normalizationPercent :: Int -> Int
+normalizationPercent percent = max (min percent 100) 10

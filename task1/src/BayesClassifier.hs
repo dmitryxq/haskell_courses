@@ -1,34 +1,82 @@
 module BayesClassifier where
--- Text Classifier Using Bayes Formula
+import ParserService
+import MathService
+import Types
+import System.Random
+import Control.Monad.State
 import Data.List
-import Data.Char
-type Category = String
-newtype Classifier = Classifier { training :: [(Category, [String])] } deriving (Eq, Show)
--- Get a new classifer with no training
-classifier :: Classifier
-classifier = Classifier []
--- classifier probabilities
-probabilityOfWordInCategory :: Classifier -> String -> Category -> Double
-probabilityOfCategory :: Classifier -> Category -> Double
--- Adding + 1 for Laplacian Correction
-probabilityOfWordInCategory (Classifier training) word category = let allInCategory = filter (\(cat, _) -> cat == category) training
-                                                                      allInCategoryContainingWord = filter (\(_, text) -> word `elem` text) allInCategory
-                                                                  in (fromIntegral $ length allInCategoryContainingWord + 1) / (fromIntegral $ length allInCategory + 1)
-probabilityOfCategory (Classifier training) category =  let allInCategory = filter (\(cat, _) -> cat == category) training 
-                                                        in (fromIntegral $ length allInCategory) / (fromIntegral $ length training)
--- Train a classifier
-train :: Classifier -> String -> Category -> Classifier 
-train (Classifier training ) text category = Classifier $ (category, cleanInput $ text):training
--- Categorize text with a classifier
-classify :: Classifier -> String -> Category
-classify classifier text = fst $ head $ sortBy (\(_, a) (_, b)  -> b `compare` a) $ probabilities classifier text
--- Get Probability for each Category
-probabilities :: Classifier ->  String -> [(Category, Double)] 
-probabilities classifier@(Classifier training) text =  map (\cat -> (cat, probabilityForCategory classifier text cat)) $ nub $ map (\(cat, _) -> cat) training
--- Get Probability for a passage in a certain category
-probabilityForCategory :: Classifier -> String -> Category -> Double
-probabilityForCategory classifier text category = (+) (log $ probabilityOfCategory classifier category)  (sum $ map (\word -> log $ probabilityOfWordInCategory classifier word category) $ cleanInput text) 
--- Lowercase, Remove Punctuation
-cleanInput :: String -> [String]
-cleanInput text = filter (\w -> not (w `elem` stopWords)) $ words $ filter (`elem` ' ':['a'..'z']) $ map toLower text 
-                  where stopWords = ["a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be","because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't","did","didn't","do","does","doesn't","doing","don't","down","during","each","few","for","from","further","had","hadn't","has","hasn't","have","haven't","having","he","he'd","he'll","he's","her","here","here's","hers","herself","him","himself","his","how","how's","i","i'd","i'll","i'm","i've","if","in","into","is","isn't","it","it's","its","itself","let's","me","more","most","mustn't","my","myself","no","nor","not","of","off","on","once","only","or","other","ought","our","ours ","ourselves","out","over","own","same","shan't","she","she'd","she'll","she's","should","shouldn't","so","some","such","than","that","that's","the","their","theirs","them","themselves","then","there","there's","these","they","they'd","they'll","they're","they've","this","those","through","to","too","under","until","up","very","was","wasn't","we","we'd","we'll","we're","we've","were","weren't","what","what's","when","when's","where","where's","which","while","who","who's","whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're","you've","your","yours","yourself","yourselves"]
+import qualified Data.Map as M
+import Control.Parallel.Strategies as Strategies
+import Control.Monad.Par as Par
+
+
+
+-----------------------------------UTILS-----------------------------------
+
+randomSt :: (Num a, RandomGen g, Random a) => State g a  
+randomSt = state (randomR (0, 100))
+
+testAccuracy :: [Bool] -> Double
+testAccuracy testResults = correct / total
+                            where total = fromIntegral . length $ testResults
+                                  correct = fromIntegral . length . filter id $ testResults
+
+splitOnTrainAndEducation :: Int -> [DataVector] -> State StdGen ([DataVector], [DataVector])
+splitOnTrainAndEducation threshold [] = return ([], [])
+splitOnTrainAndEducation threshold input = do 
+    let (x:xs) = input
+    val <- randomSt
+    (study, test) <- splitOnTrainAndEducation threshold xs
+    if val <= threshold 
+    then return (x:study, test)
+    else return (study, x:test)
+
+
+-----------------------------------TRAINING-----------------------------------
+
+trainVectorWithIndex :: Int -> DataVector -> TrainedData -> TrainedData
+trainVectorWithIndex _ ([], _) trained = trained
+trainVectorWithIndex index ([value], dataClass) trained = M.alter classDataAdjust dataClass trained
+                                            where classDataAdjust classData = case classData of 
+                                                                                    Just cd -> Just(M.alter savedAttrAdjust index cd)
+                                                                                    Nothing -> Just(M.singleton index [value])
+                                                  savedAttrAdjust attributes = case attributes of
+                                                                                    Just attrs -> Just(value:attrs)
+                                                                                    Nothing -> Just([value])
+
+trainVectorWithIndex index ((x:xs),dataClass) trained = trainVectorWithIndex (index + 1) (xs, dataClass) insertedValue
+                                                        where insertedValue = trainVectorWithIndex index ([x], dataClass) trained
+trainVector = trainVectorWithIndex 0
+
+
+train' :: TrainedData -> [DataVector] -> TrainedData
+train' trained []     = trained
+train' trained (vector:xs) = train' (trainVector vector trained)  xs
+
+train :: [DataVector] -> TrainedData
+train = train' M.empty
+
+-----------------------------------BAYES-----------------------------------
+
+testBayes :: TrainedData -> [Double] -> String
+testBayes input vectData = assignedClass
+                                        where delta = 0.0000001
+                                              pc vectClass = pC input vectClass
+                                              trainedClassF className attrData = (pc className) * (product $ mapWithIndex (vectorMap attrData) vectData)
+                                              vectorMap attrData (index, val) = (pvc attrData val index) + delta
+                                              classProbList = M.toList $ M.mapWithKey trainedClassF input
+                                              (assignedClass, _) = last $ sortOn (\(className, prob) -> prob) classProbList
+
+
+testOnData :: [DataVector] -> Int -> Int -> StdGen -> [(TrainedData, Double)]
+testOnData _ 0 _ _ = []
+testOnData input tryCount trainPart gen = (trained, accuracy):(testOnData input (tryCount-1) trainPart gen')
+                                            where ((trainData,testData), gen') = runState (splitOnTrainAndEducation trainPart input) gen
+                                                  trained = train trainData
+                                                  vectMapF (vectorData, vectorClass) = (testBayes trained vectorData) == vectorClass
+                                                  accuracy = testAccuracy $ runPar $ Par.parMap vectMapF testData
+
+bestTrainedData :: [DataVector] -> Int -> Int -> StdGen -> TrainedData
+bestTrainedData input tryCount trainPart gen = trained
+                                                    where testRes = testOnData input tryCount trainPart gen
+                                                          (trained, _) = last $ sortOn (\(_, acc) -> acc) testRes

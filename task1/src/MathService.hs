@@ -1,52 +1,42 @@
 module MathService
-    ( hammingDistance,
-      euclideanDistance,
-      arithmeticMean
+    ( arithmeticMean,
+      varianceList,
+      meanAndDispersian,
+      pvc,
+      pC,
+      attrCount,
+      trainedCount
     ) where
 
-import Data.Vector as V
-import Statistics.Sample
-type Vector = [Double]
--- hammingDistance :: [Double] -> [Double] -> Int
--- hammingDistance listX listY = sum $ zipWith diff listX listY
---                 where diff a b | a == b = 0
---                                | otherwise = 1
-
--- euclideanDistance :: [Double] -> [Double] -> Double
--- euclideanDistance listX listY = sqrt $ sum $ zipWith diff listX listY
---                 where diff a b | a == b = 0
---                                | otherwise = 1
-
-
-hammingDistance :: V.Vector Double -> V.Vector Double -> Double
-hammingDistance listX listY = V.sum $ V.map abs diff
-  where diff = V.zipWith (-) listY listY
-
-euclideanDistance :: V.Vector Double -> V.Vector Double -> Double
-euclideanDistance listX listY = sqrt $ V.sum $ V.map abs diff
-  where diff = V.zipWith (-) listY listY
-
+import qualified Data.Map as M
+import Types
 
 arithmeticMean :: [Double] -> Double
-arithmeticMean list = Prelude.foldr (+) 0 list / Prelude.foldr (\x y -> 1+y) 0 list
+arithmeticMean list = foldr (+) 0 list / foldr (\x y -> 1+y) 0 list
 
 varianceList :: [Double] -> Double
 varianceList list = dispNumerator / dispDevider
-	where
-		dispNumerator = Prelude.sum  $ Prelude.map (\x -> (x - arithmeticMean list) ** 2)  list
-		dispDevider = fromIntegral $ (Prelude.length list - 1)
+    where
+        dispNumerator = sum  $ map (\x -> (x - arithmeticMean list) ** 2)  list
+        dispDevider = fromIntegral $ (length list - 1)
 
 
 meanAndDispersian :: [Double] -> (Double, Double)
 meanAndDispersian list = (arithmeticMean list, varianceList list)
 
--- probabilityPVC :: [Vector] -> Vector -> Double -> Double
--- probabilityPVC matrix vectorXIC xi = 1 / (sqrt sigmaSqrDoubled * pi) * exp ( (xi - mean vectorXIC)^2 / sigma * (-1))
---     where 
---         sigma = 2 * dispersion xi matrix
+pvc :: Dictionary -> Double -> Int -> Double
+pvc dictionary xi index = numerator / denominator
+                                where (mean, disp) = meanAndDispersian (dictionary M.! index)
+                                      numerator = exp ((xi - mean) ^ 2) / (-2 * disp)
+                                      denominator = sqrt (2.0 * pi * disp) 
 
+pC :: TrainedData -> String -> Double 
+pC trained className = classCount / totalCount
+                        where classCount = fromIntegral $ attrCount $ trained M.! className
+                              totalCount = fromIntegral $ trainedCount trained
 
--- dispersion :: Double -> [Vector] -> Double
--- dispersion xi xs = 1 / (n - 1) * foldl (\acc x -> (xi - mean x)**2 + acc) 0 xs
---     where 
---         n = fromIntegral $ length xs
+attrCount :: Dictionary -> Int
+attrCount = M.fold (\attrs count -> count + (length attrs)) 0
+
+trainedCount :: TrainedData -> Int
+trainedCount = M.fold (\classData count -> count + (attrCount classData)) 0

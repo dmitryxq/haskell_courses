@@ -1,108 +1,74 @@
 module Main where
 
-import System.Environment
-import MathService
+import BayesClassifier
 import ParserService
 import ParserArgumentParams
+import MathService
 import Types
+
+import System.Environment
 import System.IO
-import System.IO.Error
-import Pipes
-import Data.Csv
-import Data.Char
-import Data.Vector as V
-import Statistics.Sample
-import Control.Exception
--- import Data.Text (Text)
-import Data.ByteString.Lazy
-import qualified Data.ByteString.Lazy as BL
+import Data.Conduit
+import System.Random
+import Control.Monad.State
+import Options.Applicative
+import Data.List
+import Text.Printf
+import qualified Data.Conduit.List as CL
+import qualified Data.Map as M
+import Control.Parallel.Strategies as Strategies
+import Control.Monad.Par as Par
 
-import Data.List.Split
-import BayesClassifier
+naiveBayes :: ParserCSVOption -> IO ()
+naiveBayes options = do
+    let ParserCSVOption {splitterColumn = devider} = options
+        ParserCSVOption {input = filePath} = options
+        ParserCSVOption {percent = percent} = options
+        ParserCSVOption {ignoreFirstColumn = skipFirstCol} = options
+        ParserCSVOption {ignoreLastColumn = skipLastCol} = options
+        ParserCSVOption {ignoreHeader = skipFirstLine} = options
+        ParserCSVOption {retryCount = retryCount} = options
+        ParserCSVOption {output = output} = options
 
--- | File for tested
-csvFile :: FilePath
-csvFile = "resources/glass.txt"
+    let result :: IO [DataVector]
+        source' = source filePath
+        lTransform list = deleteColumns list skipLastCol skipFirstCol 
+        conduit' = conduit (elementSplitter devider) lTransform
+        result = source' $$ conduit' =$ CL.consume
+    v <- result
+    let vectors = deleteHeader v skipFirstLine
+    gen <- getStdGen
 
-sample = fromList [1.5,1.3,1.2,1.9,2.1]
+    let res = bestTrainedData vectors retryCount (normalizationPercent percent) gen    
+    let resultSource = CL.sourceList $ bayesResultSource res
+
+    case output of
+        Just outFile -> do 
+            h <- openFile outFile WriteMode
+            resultSource $$ (fileSink h)
+            hClose h
+        Nothing -> resultSource $$ awaitForever (lift . print)
+    
+
+
+printAttribute :: (Int, (Double, Double)) -> String
+printAttribute (index, (mu, disp)) = printf " - %d(%.2f;%.2f)" index mu disp
+
+printTrainedClass :: (String , M.Map Int (Double, Double)) -> String
+printTrainedClass (className, attrMap) = className ++ arrtName
+                                            where attrNames = runPar $ Par.parMap printAttribute $ sortOn fst (M.toList attrMap)
+                                                  arrtName = concat attrNames
+
+bayesResultSource :: TrainedData -> [String]
+bayesResultSource trained = runPar $ Par.parMap printTrainedClass trainedList
+                                where trainedClassF attrData = M.map meanAndDispersian attrData
+                                      trainedList = M.toList . M.map trainedClassF $ trained
+
 
 main :: IO ()
 main = do
-    -- System.IO.putStrLn "Ololo"
-    -- -- print $ arithmeticMean [1.5,1.3,1.2,1.9,2.1]
-    -- -- print $ variance sample
-    -- -- print $ mean sample
-    -- -- print $ getMeanAndVarianceList sample
-    -- System.IO.putStrLn "============================================================================"
     options <- getArgs >>= parseInputArguments
-    -- contents <- BL.readFile csvFile
-    readResult <- try (BL.readFile csvFile):: IO(Either SomeException ByteString)
-    case readResult of
-         Left someException -> print someException
-         Right contents -> do
-             let result = parserCSVFile contents options
-             print result
-             -- putStrLn result
-    System.IO.putStrLn "fine"
-    -- MAIN function main
-
-getMeanAndVarianceList :: V.Vector Double -> V.Vector Double
-getMeanAndVarianceList list = fromList [meanList, varianceList]
-    where meanList = mean list
-          varianceList = variance list
-    
-
-    -- hSetBuffering stdout NoBuffering
-    -- hSetBuffering stdin NoBuffering
-    -- interactionLoop classifier "start" 
-    -- testConduit
-
-
--- interactionLoop myClassifier function = case function of 
---                                           "start" ->  
---                                             do
---                                               System.IO.putStrLn "Enter an action [train|classify]"
---                                               action <- getLine
---                                               interactionLoop myClassifier action
---                                           "train" -> 
---                                             do
---                                               System.IO.putStr "Category: "
---                                               category <- getLine
---                                               System.IO.putStr "Material: "
---                                               material <- getLine
---                                               interactionLoop (train myClassifier material category) "start"
---                                           "classify" ->
---                                             do
---                                               System.IO.putStr "Material: "
---                                               material <- getLine
---                                               System.IO.putStrLn $ classify myClassifier material
---                                               System.IO.putStrLn . show $ probabilities myClassifier material
---                                               System.IO.putStrLn "\n\n\n\n"
---                                               interactionLoop myClassifier "start"
---                                           _ ->
---                                               interactionLoop myClassifier "start"
-
-    -- putStrLn "Please input parameters: "
-    -- putStrLn $ show $ splitOn "," "1,2,3,4"
- --    arguments <- getLine
-    
- --    let fileName = arguments !! 0
-    -- -- test
- --    putStrLn fileName
-
-
--- test hammingDistance
-
--- main = putStrLn $ show $ hammingDistance [1, 2, 3] [2, 3, 1, 5]
-
--- test input arg     
--- main = do
--- 	putStrLn "Please, write input.csv file:"
--- 	csvFile <- getLine
--- 	putStrLn "Count clasters:"
--- 	countClaster <- getLine
--- 	putStrLn "Write epsilon:"
--- 	epsilon <- getLine
--- 	putStrLn "Thanks"
+    naiveBayes options
+    putStrLn "Finish"
 
 

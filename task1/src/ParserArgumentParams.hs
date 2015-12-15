@@ -13,14 +13,13 @@ specificOption =
        Option ['h'] ["header"] (NoArg (\opt -> return opt {ignoreHeader = True})) "Ignore header",
        Option ['f'] ["first"] (NoArg (\opt -> return opt {ignoreFirstColumn = True})) "Ignore first column",
        Option ['l'] ["last"] (NoArg (\opt -> return opt {ignoreLastColumn = True})) "Ignore last column",
-       Option ['e'] ["euclid"] (NoArg (\opt -> return opt {typeDistance = True})) "Euclid distance",
-       Option ['m'] ["hamming"] (NoArg (\opt -> return opt {typeDistance = False})) "Hamming distance",
-       Option ['p'] ["eps"] (ReqArg (\arg opt -> return opt {epsilon = read arg :: Double}) "DOUBLE") "EPS",
-       Option ['h'] ["help"] (NoArg (\opt -> return opt {help = True})) "Help",
        Option ['i'] ["input"] (ReqArg (\arg opt -> return opt {input = arg}) "STRING") "Input file",
-       Option ['d'] ["delimeter"] (ReqArg (\arg opt -> return opt {splitterColumn = arg !! 0})"Char") "Splitter Column",
-       Option ['c'] ["countClusters"] (ReqArg (\arg opt -> return opt {countCluster = read arg :: Integer}) "Integer") "Count Cluster",
-       Option ['r'] ["random"] (NoArg (\opt -> return opt {randomize = False})) "Random center or random matrix"
+       Option ['d'] ["delimeter"] (ReqArg (\arg opt -> return opt {splitterColumn = arg})"STRING") "Splitter Column",
+       Option ['z'] ["percent"] (ReqArg (\arg opt -> return opt {percent = read arg :: Int}) "Int") "Percent training",
+       Option ['y'] ["retryCount"] (ReqArg (\arg opt -> return opt {retryCount = read arg :: Int}) "Int") "retry Count",
+       Option ['o'] ["output"] (ReqArg (\arg opt -> return opt {output = read arg :: PrintSource}) "STRING") "output file"
+
+
    ]
 
 parseInputArguments :: [String] -> IO ParserCSVOption
